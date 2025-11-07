@@ -15,13 +15,13 @@
 
 #*********************************************************
 #Problem
-#Ordinary least squares regression is a valuable tool, but one that comes with several important assumptions that should be checked.  Violations of these assumptions can sometimes result in biased estimates of the regression parameters with consequences for the accuracy of predictions.
+#Ordinary least squares regression is a valuable tool, but one that comes with several important assumptions that should be checked.  Violations of these assumptions can sometimes result in diffed estimates of the regression parameters with consequences for the accuracy of predictions.
 
 #Objective 1
-#Find real data related to your research focus that fits the assumptions of ordinary least squares regression, estimate the regression parameters, and compare model predictions at two X values.
+#Find real data related to your research focus that fits the assumptions of ordinary least squares regression, estimate the regression parameters, and compare model2024gswearlyTref predictions at two X values.
 #A. Using either your own data or data that you find in an online database find two continuous variables that might reasonably be hypothesized to have a causal association (i.e., one variable is clearly the response, Y, and the other the predictor, X) and have sufficient numbers of paired observations (> 30).
 #B. Using lm(), fit a linear regression to these data.
-#C. Evaluate the model residuals for signs that regression assumptions are violated.  You should evaluate at least three assumptions and for each one state to what extent you believe it is violated and how you know.  You should plot figures and write your response as comments embedded in the code.
+#C. Evaluate the model2024gswearlyTref residuals for signs that regression assumptions are violated.  You should evaluate at least three assumptions and for each one state to what extent you believe it is violated and how you know.  You should plot figures and write your response as comments embedded in the code.
 #D. Generate predictions and associated prediction intervals for two X values: one at the median of X and the other at the 95th percentile of X.  How do the prediction intervals differ?
   
 #***********************************************************
@@ -30,93 +30,161 @@ library(ggplot2)
 library(dplyr)
 
 # read the data set
-gsw2024 <- readRDS("../../data/north_2024_test_data_cleaned.rds")
-
+gsw2024 <- readRDS("data/north_2024_test_data_cleaned.rds")
 gsw2024
 
-# Constants
-alpha <- 13   # intercept
-beta <- 7    # slope
-n <- 100     # number of observations
-x <- runif(n, 0, 10)  # x from uniform distribution 0-10
+#A
+summary(gsw2024$gsw_early)
+summary(gsw2024$Tref_early)
+length(na.omit(gsw2024$gsw_early))  
+length(na.omit(gsw2024$Tref_early))
 
-# Define different sigma values
-sigma_values <- c(1, 10, 25)
-
-# Generate y values for each sigma
-data <- lapply(sigma_values, function(sigma) {
-  y <- alpha + beta * x + rnorm(n, mean = 0, sd = sigma)
-  data.frame(x = x, y = y, sigma = factor(sigma))
-}) %>% bind_rows()
+#B
+model2024gsw <- lm(Tref_early ~gsw_early, data = gsw2024)
+summary(model2024gsw)  # check the model2024gswearlyTref
 
 
-ggplot(data, aes(x = x, y = y)) +
-  geom_point(color = "blue") +
-  geom_smooth(method = "lm", se = FALSE, color = "red") +
-  facet_wrap(~ sigma, nrow = 1) +
+#C
+par(mfrow = c(2,2))
+plot(model2024gswearlyTref)  
+
+# 1. Linear Relationship
+plot(gsw2024$Tref_early, gsw2024$gsw_early, main="Scatterplot of Y vs X")
+abline(model2024gswearlyTref, col="red")
+
+#I think from the Residuals vs Fitted plot, the red loess curve is clearly curved, indicating violation of the linearity assumption.The spread of residuals is not constant across fitted values, which means could not be a fit line model. 
+
+
+# 2. Normal Q-Q
+qqnorm(residuals(model))
+qqline(residuals(model), col = "red")
+
+#The Q-Q plot is has very substantial deviation from the 1 to 1 line, especially in the upper tail, indicating that residuals are strongly non-normal. I think this violates the normality assumption.
+
+# 3. Residual Normality
+hist(residuals(model2024gswearlyTref), main="Histogram of Residuals")
+shapiro.test(residuals(model2024gswearlyTref))  # 正态性检验
+#It is clear that the Scale-Location plot has an upward trend in the red line, suggesting increasing residual variance with fitted values. I think is indicates heteroscedasticity and aginst of the constant variance assumption, 
+
+
+# 4. Homogeneity of residual variance
+plot(fitted(model2024gswearlyTref), residuals(model2024gswearlyTref), main="Residuals vs Fitted")
+abline(h=0, col="red")
+
+
+
+
+# D. Generate Predictions and Prediction Intervals
+# Calculate the median and 95th quantile of X
+X_median <- median(gsw2024$Tref_early, na.rm=TRUE)
+X_95 <- quantile(gsw2024$Tref_early, 0.95, na.rm=TRUE)
+
+# 创建新数据框用于预测
+newdata2024 <- data.frame(Tref_early = c(X_median, X_95))
+
+# 生成预测和预测区间
+pred <- predict(model2024gswearlyTref, newdata2024, interval = "prediction")
+pred
+
+# 95% have bigger range. 
+
+
+#***********************************************************
+#Objective 2
+#I’ve said in class that the regression parameter estimates are fairly robust to modest deviations from normality.  However, estimates of uncertainty or more sensitive.  Evaluate whether this is true.
+#A.	Generate linear regression data where the error in the response variable Y is not quite normally distributed (but still unimodal).  A lognormal or negative binomial distribution should work.  No error in X this time. 100 X, Y pairs should be good.
+#B.	Fit a linear regression to the data.
+#C.	Repeat this process and keep track of the true and estimated slope and intercept. 
+#D.	How well do the estimated slope and intercept match the true values?
+#E.	For each simulation, generate a 95% prediction interval for each X value.
+#F.	What fraction of your data (Y values) falls within the 95% prediction interval?  
+#G.	What does this imply for how your estimated uncertainty in the predictions compares to the true uncertainty.
+
+#***********************************************************
+
+#A
+n <- 100          # 每次模拟 100 个点
+a_true <- 7       # 真实截距
+b_true <- 5       # 真实斜率
+
+# 用 lognormal 产生偏态误差
+meanlog <- 0
+sdlog <- 2
+
+X <- runif(n, 0, 25)    # make the X without error
+err <- rlnorm(n, meanlog, sdlog)
+err <- err - mean(err)
+Y <- a_true + b_true * X + err
+
+#B
+modelO2 <- lm(X ~ Y)
+summary(modelO2)  
+
+ggplot(data.frame(Y = Y), aes(x = Y)) +
+  geom_histogram(bins = 30, color = "black", fill = "blue") +
   labs(
-    title = "Effect of Increasing Observation Error",
-    x = "Predictor (x)",
-    y = "Response (y)",
-    caption = "σ = standard deviation of random error"
+    title = "Histogram of Y",
+    x = "Y",
+    y = "Count"
   ) +
   theme_minimal()
 
-# C. When εi or σ is very small, then x and y have very strong correlation. When σ is bigger, looks they have bigger variance. 
+ggplot(data.frame(X, Y), aes(x = X, y = Y)) +
+  geom_point() +                                  
+  geom_smooth(method = "lm", se = TRUE, color = "red") +  
+  labs(
+    title = "Linear Regression: X ~ Y",
+    x = "x",
+    y = "Y"
+  ) +
+  theme_minimal()
 
-#***********************************************************
-#Objective 2 
-#Recalling Don Corleone’s loaded coin, we’re interested in knowing how many coin flips are required to be able to consistently determine whether the coin is unfair (p(heads)>0.5) for different degrees of unfairness.  
-#A. Using simulations of coin flips (Bernoulli trials), plot the probability (number of times out of 100) that you determine the coin is significantly unfair (alpha < 0.05) for 1 to 20 coin flips when p = 0.55. 
-#B. Repeat this analysis for p = 0.6 and p = 0.65 and add these lines to the plot from A.
-#*********************************************************
+#C
+simO2 <- 1000     #Simulate 1000 times
 
-test_coin <- function(p, n, reps = 100){
-  count_sig <- 0
+# Store Results 
+est_a <- numeric(simO2)  #Save the intercept of the regression model to est_a[i].
+est_b <- numeric(simO2)  #Save the slope of the regression model to est_b[i].
+coverage <- numeric(simO2)
+
+for (i in 1:simO2) {
+  X <- runif(n, 0, 20) 
+  err <- rlnorm(n, meanlog, sdlog)
+  err <- err - mean(err)
+  Y <- a_true + b_true * X + err
+  modelO2_1 <- lm(Y ~ X)
   
-  for(i in 1:reps){
-    # Simulate n coin tosses (1 = heads)
-    x <- rbinom(n, size = 1, prob = p)
-    
-    # Perform a binomial test (to test whether p is greater than 0.5).
-    test <- binom.test(sum(x), n, p = 0.5, alternative = "greater")
-    
-    if(test$p.value < 0.05){
-      count_sig <- count_sig + 1
-    }
-  }
+  est_a[i] <- coef(modelO2_1)[1]   
+  est_b[i] <- coef(modelO2_1)[2]
   
-  return(count_sig)
+  #E the prediction interval for each X
+  pred <- predict(modelO2_1, interval = "prediction")
+  
+  #f Calculate the proportion of the true Y that falls within the PI.
+  coverage[i] <- mean(Y >= pred[, "lwr"] & Y <= pred[, "upr"]) 
 }
 
-#----------------------------------------------
-# A. p = 0.55，samples from 1 to 20
-#----------------------------------------------
 
-p1 <- 0.55
-results_p55 <- sapply(1:20, function(n) test_coin(p1, n))
+# D the different between estimates and true values of slope & intercept 
+mean(est_a); mean(est_b)
+diff_a <- mean(est_a) - a_true
+diff_b <- mean(est_b) - b_true
+diff_a; diff_b
+# this reslut show that the estimates slope and intercept are really have a little difference with the true values. 
 
-#----------------------------------------------
-# B. p = 0.60 & p = 0.65
-#----------------------------------------------
+#G
+mean(coverage)       
+sd(coverage)         
+quantile(coverage, c(.05, .25, .5, .75, .95))
 
-p2 <- 0.60
-p3 <- 0.65
+#It shows that most of Y is still within the estimated range.
 
-results_p60 <- sapply(1:20, function(n) test_coin(p2, n))
-results_p65 <- sapply(1:20, function(n) test_coin(p3, n))
-
-
-
-plot(1:20, results_p55, type="l", lwd=2, col="blue",
-     xlab="Number of flips", ylab="Times significant (out of 100)",
-     ylim=c(0, 50),             
-     main="Detection Power vs Number of Coin Flips")
-
-
-lines(1:20, results_p60, lwd=2, col="red")
-lines(1:20, results_p65, lwd=2, col="purple")
-
-legend("topleft",
-       legend=c("p = 0.55", "p = 0.60", "p = 0.65"),
-       col=c("blue", "red", "purple"), lwd=2)
+ggplot(data.frame(coverage = coverage), aes(x = coverage)) +
+  geom_histogram(bins = 15, fill = "blue", color = "black") +
+  geom_vline(xintercept = 0.95, color = "red", linetype = "dashed", size = 1) +
+  labs(
+    title = "Distribution of Prediction Interval Coverage",
+    x = "Coverage",
+    y = "Count"
+  ) +
+  theme_minimal()
